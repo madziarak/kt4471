@@ -9,6 +9,15 @@ const SUPABASE_ANON_KEY = "sb_publishable_QzmVHUG_Ihfxwz3ofmWlzA_uw_GuTci";
 // Browser-Sitzung gilt (sessionStorage).
 let bleibtAngemeldet = localStorage.getItem("zuruf-bleiben") !== "false";
 
+// window.location.origin allein schneidet den Pfad ab (z. B. "/zuruf/") —
+// das schickte den Anmelde-Link fälschlich auf die nackte Domain statt zur App.
+function basisAdresse() {
+  const pfad = window.location.pathname.endsWith("/")
+    ? window.location.pathname
+    : window.location.pathname.replace(/[^/]*$/, "");
+  return window.location.origin + pfad;
+}
+
 const wechselndeAblage = {
   getItem: (schluessel) => (bleibtAngemeldet ? localStorage : sessionStorage).getItem(schluessel),
   setItem: (schluessel, wert) => (bleibtAngemeldet ? localStorage : sessionStorage).setItem(schluessel, wert),
@@ -55,7 +64,7 @@ sendenKnopf.addEventListener("click", async () => {
 
   const { error } = await supabaseClient.auth.signInWithOtp({
     email,
-    options: { shouldCreateUser: false, emailRedirectTo: window.location.origin },
+    options: { shouldCreateUser: false, emailRedirectTo: basisAdresse() },
   });
 
   sendenKnopf.disabled = false;
