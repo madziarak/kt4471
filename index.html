@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zuruf</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#112883">
+<style>
+  :root {
+    --hell: #FAF6F0;
+    --dunkel: #14172A;
+    --marke: #112883;
+    --marke-hell: #7B93E8;
+    --text-auf-hell: #111111;
+    --text-auf-dunkel: #FAF6F0;
+    --rand: #E4DDD1;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: 'sofia-pro', -apple-system, 'Segoe UI', Roboto, sans-serif;
+    background: #EFEAE1;
+    color: var(--text-auf-hell);
+    padding: 24px 16px;
+    display: flex;
+    justify-content: center;
+  }
+
+  /* Handy-Rahmen (auf dem Handy selbst füllt die App den ganzen Bildschirm) */
+  .phone {
+    width: 100%;
+    max-width: 420px;
+    min-height: 100vh;
+    background: var(--hell);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  @media (min-width: 480px) {
+    .phone {
+      min-height: 780px;
+      border-radius: 40px;
+      border: 10px solid #1c1c1c;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+      overflow: hidden;
+    }
+  }
+
+  .phone.dunkel { background: var(--dunkel); color: var(--text-auf-dunkel); }
+
+  /* Bildschirme: nur der aktive ist sichtbar */
+  .bildschirm { display: none; flex-direction: column; flex: 1; min-height: 0; }
+  .bildschirm.aktiv { display: flex; }
+
+  /* Kopfzeile */
+  .kopfzeile {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24px 20px 12px;
+  }
+
+  .kopfzeile .titel {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--marke);
+  }
+
+  .icon-knopf {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(17,40,131,0.08);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    cursor: pointer;
+  }
+
+  /* Ansicht Heute */
+  .abschnitt-titel {
+    padding: 4px 20px 12px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #7a7466;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .filterleiste {
+    display: flex;
+    gap: 8px;
+    padding: 0 20px 16px;
+    overflow-x: auto;
+  }
+
+  .filter-chip {
+    padding: 8px 16px;
+    border-radius: 999px;
+    background: #fff;
+    border: 1px solid var(--rand);
+    font-size: 14px;
+    white-space: nowrap;
+    color: #555;
+    cursor: pointer;
+  }
+
+  .filter-chip.aktiv {
+    background: var(--marke);
+    color: var(--hell);
+    border-color: var(--marke);
+  }
+
+  .liste {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .eintrag {
+    background: #fff;
+    border-radius: 18px;
+    padding: 16px;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  }
+
+  .eintrag .art-symbol {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: rgba(17,40,131,0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  .eintrag .inhalt { flex: 1; }
+
+  .eintrag .eintrag-titel {
+    font-size: 17px;
+    font-weight: 600;
+    margin: 0 0 4px;
+  }
+
+  .eintrag .meta {
+    font-size: 13px;
+    color: #8a8478;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .status-punkt {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .status-punkt.offen::before { content: "●"; color: var(--marke-hell); }
+  .status-punkt.erledigt::before { content: "●"; color: #8bbf8b; }
+
+  /* Vier gleich große Knöpfe */
+  .knopf-leiste {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    padding: 16px 20px 24px;
+  }
+
+  .aktion-knopf {
+    background: var(--marke);
+    color: var(--hell);
+    border: none;
+    border-radius: 20px;
+    padding: 20px 10px;
+    font-size: 16px;
+    font-weight: 700;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+  }
+
+  .aktion-knopf .symbol { font-size: 26px; }
+
+  /* Vorschlags-Karte */
+  .vorschlag-karte {
+    margin: 20px;
+    background: #fff;
+    border-radius: 22px;
+    padding: 20px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .vorschlag-karte .erkannter-text {
+    background: #F4F0E8;
+    border-radius: 14px;
+    padding: 14px;
+    font-size: 15px;
+    color: #555;
+    font-style: italic;
+  }
+
+  .feld {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .feld label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #8a8478;
+    font-weight: 700;
+  }
+
+  .feld .wert {
+    font-size: 17px;
+    font-weight: 600;
+  }
+
+  .feld .wert.art-badge {
+    display: inline-block;
+    background: rgba(17,40,131,0.1);
+    color: var(--marke);
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 14px;
+    width: fit-content;
+  }
+
+  .vorschlag-knopfreihe {
+    display: flex;
+    gap: 12px;
+    margin-top: 4px;
+  }
+
+  .knopf-primaer, .knopf-sekundaer {
+    flex: 1;
+    padding: 16px;
+    border-radius: 16px;
+    font-size: 16px;
+    font-weight: 700;
+    border: none;
+    text-align: center;
+    cursor: pointer;
+  }
+
+  .knopf-primaer { background: var(--marke); color: var(--hell); }
+  .knopf-sekundaer { background: #F4F0E8; color: var(--marke); border: 1px solid var(--rand); }
+
+  /* Anmelde-Bildschirm */
+  .anmelde-inhalt {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    text-align: center;
+    gap: 18px;
+  }
+
+  .anmelde-logo {
+    width: 80px;
+    height: 80px;
+    border-radius: 22px;
+    background: var(--marke);
+    color: var(--hell);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    font-weight: 700;
+  }
+
+  .anmelde-inhalt h2 {
+    margin: 0;
+    font-size: 24px;
+  }
+
+  .anmelde-inhalt p {
+    margin: 0;
+    color: #b9c2e8;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  .anmelde-feld {
+    width: 100%;
+    padding: 16px;
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.08);
+    color: var(--text-auf-dunkel);
+    font-size: 16px;
+  }
+
+  .anmelde-feld::placeholder { color: #8b93bb; }
+
+  .anmelde-checkbox-zeile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    color: #b9c2e8;
+    width: 100%;
+  }
+
+  .anmelde-knopf {
+    width: 100%;
+    background: var(--marke-hell);
+    color: var(--dunkel);
+    border: none;
+    border-radius: 16px;
+    padding: 18px;
+    font-size: 16px;
+    font-weight: 700;
+    margin-top: 4px;
+    cursor: pointer;
+  }
+
+  .anmelde-knopf:disabled { opacity: 0.6; }
+
+  .anmelde-status {
+    font-size: 14px;
+    min-height: 20px;
+    color: var(--marke-hell);
+  }
+
+  .anmelde-hinweis {
+    font-size: 12px;
+    color: #7f88ac;
+    line-height: 1.5;
+  }
+
+  /* Einstellungen */
+  .einstellung-zeile {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--rand);
+    font-size: 16px;
+  }
+
+  .einstellung-zeile .wert-rechts {
+    color: #8a8478;
+    font-size: 14px;
+  }
+
+  .einstellung-zeile.klickbar { cursor: pointer; background: none; border-top: none; border-left: none; border-right: none; width: 100%; text-align: left; font-family: inherit; color: inherit; }
+
+  .schalter {
+    width: 46px;
+    height: 26px;
+    border-radius: 999px;
+    background: var(--marke);
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .schalter::after {
+    content: "";
+    position: absolute;
+    top: 3px; right: 3px;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: #fff;
+  }
+
+</style>
+</head>
+<body>
+
+  <div class="phone dunkel bildschirm aktiv" id="bildschirm-anmeldung">
+    <div class="anmelde-inhalt">
+      <div class="anmelde-logo">Z</div>
+      <h2>Willkommen bei Zuruf</h2>
+      <p>Dein Eingang in der Hosentasche — sprich, tippe oder fotografiere, was dir unterwegs einfällt.</p>
+
+      <input type="email" id="anmelde-email" class="anmelde-feld" placeholder="deine@email.de" autocomplete="email" inputmode="email">
+
+      <label class="anmelde-checkbox-zeile">
+        <input type="checkbox" id="anmelde-bleiben" checked>
+        Angemeldet bleiben
+      </label>
+
+      <button class="anmelde-knopf" id="anmelde-senden">Anmelde-Link senden</button>
+
+      <p class="anmelde-status" id="anmelde-status"></p>
+      <p class="anmelde-hinweis">Du bekommst eine E-Mail mit einem Anmelde-Link. Der eingebaute Mailversand erlaubt nur wenige E-Mails pro Stunde — falls nichts ankommt, kurz warten und erneut versuchen.</p>
+    </div>
+  </div>
+
+  <div class="phone bildschirm" id="bildschirm-haupt">
+    <div class="kopfzeile">
+      <div class="titel">Zuruf</div>
+      <button class="icon-knopf" id="knopf-einstellungen-oeffnen">⚙️</button>
+    </div>
+
+    <div class="abschnitt-titel">Heute</div>
+    <div class="filterleiste" id="filterleiste">
+      <div class="filter-chip aktiv" data-art="alle">Alle</div>
+      <div class="filter-chip" data-art="aufgabe">Aufgabe</div>
+      <div class="filter-chip" data-art="notiz">Notiz</div>
+      <div class="filter-chip" data-art="kundennotiz">Kundennotiz</div>
+      <div class="filter-chip" data-art="beleg">Beleg</div>
+      <div class="filter-chip" data-art="einkauf">Einkauf</div>
+    </div>
+
+    <div class="liste">
+      <div id="eintraege-offen"></div>
+      <p id="eintraege-leer" style="color:#8a8478; text-align:center; padding:20px 0; display:none;">Noch nichts hier — leg mit SPRECHEN, FOTO oder TIPPEN los.</p>
+      <details id="eintraege-erledigt-block" style="display:none;">
+        <summary style="cursor:pointer; color:#8a8478; padding:10px 0; font-size:14px;" id="eintraege-erledigt-zusammenfassung">Erledigt/abgelegt anzeigen</summary>
+        <div id="eintraege-erledigt" style="display:flex; flex-direction:column; gap:12px; padding-top:8px;"></div>
+      </details>
+    </div>
+
+    <div class="knopf-leiste">
+      <button class="aktion-knopf" id="knopf-sprechen"><span class="symbol">🎙️</span>SPRECHEN</button>
+      <button class="aktion-knopf" id="knopf-foto"><span class="symbol">📷</span>FOTO</button>
+      <button class="aktion-knopf" id="knopf-tippen"><span class="symbol">⌨️</span>TIPPEN</button>
+      <button class="aktion-knopf" id="knopf-einkauf"><span class="symbol">🛒</span>EINKAUF</button>
+    </div>
+    <input type="file" id="foto-eingabe" accept="image/*" capture="environment" style="display:none;">
+  </div>
+
+  <div class="phone bildschirm" id="bildschirm-tippen">
+    <div class="kopfzeile">
+      <div class="titel">Zuruf</div>
+      <button class="icon-knopf" id="knopf-tippen-abbrechen">✕</button>
+    </div>
+    <div class="vorschlag-karte" style="flex:1;">
+      <div class="feld">
+        <label>Dein Text</label>
+        <textarea id="tippen-text" class="anmelde-feld" style="color:#111;min-height:160px;resize:vertical;" placeholder="Was möchtest du festhalten?"></textarea>
+      </div>
+      <button class="knopf-primaer" id="knopf-tippen-weiter">Weiter</button>
+    </div>
+  </div>
+
+  <div class="phone bildschirm" id="bildschirm-vorschlag">
+    <div class="kopfzeile">
+      <div class="titel">Zuruf</div>
+      <button class="icon-knopf" id="knopf-vorschlag-schliessen">✕</button>
+    </div>
+
+    <div class="vorschlag-karte">
+      <div class="erkannter-text" id="vorschlag-erkannter-text">
+        …
+      </div>
+
+      <div class="feld">
+        <label>Titel</label>
+        <input type="text" class="wert" id="vorschlag-titel" readonly style="border:none; background:none; padding:0; font-family:inherit; color:inherit; width:100%;" value="–">
+      </div>
+
+      <div class="feld">
+        <label>Art (antippen zum Ändern)</label>
+        <button type="button" class="wert art-badge" id="vorschlag-art" style="border:none; cursor:pointer;">–</button>
+      </div>
+
+      <div class="feld">
+        <label>Fälligkeit</label>
+        <div class="wert" id="vorschlag-faelligkeit">–</div>
+      </div>
+
+      <div class="vorschlag-knopfreihe">
+        <button class="knopf-sekundaer" id="knopf-vorschlag-aendern">Ändern</button>
+        <button class="knopf-primaer" id="knopf-vorschlag-uebernehmen">Übernehmen</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="phone bildschirm" id="bildschirm-einstellungen">
+    <div class="kopfzeile">
+      <div class="titel">Einstellungen</div>
+      <button class="icon-knopf" id="knopf-einstellungen-schliessen">✕</button>
+    </div>
+
+    <div class="einstellung-zeile">
+      <span>Angemeldet als</span>
+      <span class="wert-rechts" id="einstellungen-email">—</span>
+    </div>
+    <div class="einstellung-zeile">
+      <span>Sprache für Spracherkennung</span>
+      <span class="wert-rechts">Deutsch</span>
+    </div>
+    <div class="einstellung-zeile">
+      <span>Vorschläge automatisch bestätigen</span>
+      <div class="schalter"></div>
+    </div>
+    <div class="einstellung-zeile">
+      <span>Erledigte Einträge anzeigen</span>
+      <div class="schalter"></div>
+    </div>
+
+    <div class="abschnitt-titel" style="padding-top:20px;">Modell (Claude)</div>
+    <div style="padding:0 20px 16px; display:flex; flex-direction:column; gap:12px;">
+      <div class="feld">
+        <label>Anbieter-Adresse</label>
+        <input type="text" id="einstellungen-adresse" class="anmelde-feld" style="color:#111;" placeholder="https://api.anthropic.com">
+      </div>
+      <div class="feld">
+        <label>Modellname</label>
+        <input type="text" id="einstellungen-modell" class="anmelde-feld" style="color:#111;" placeholder="claude-haiku-4-5-20251001">
+      </div>
+      <div class="feld">
+        <label>Schlüssel (nur auf diesem Gerät gespeichert)</label>
+        <input type="password" id="einstellungen-schluessel" class="anmelde-feld" style="color:#111;" placeholder="sk-ant-...">
+      </div>
+      <button class="knopf-primaer" id="knopf-einstellungen-modell-speichern">Speichern</button>
+      <p class="anmelde-hinweis" style="color:#8a8478;">Der Schlüssel liegt nur in diesem Browser auf diesem Gerät. Wer dein entsperrtes Handy in der Hand hat, kann ihn auslesen. Für dich allein ist das in Ordnung; für ein Team gehört er später in eine Server-Funktion.</p>
+    </div>
+
+    <button class="einstellung-zeile klickbar" id="knopf-abmelden">
+      <span>Abmelden</span>
+      <span class="wert-rechts">›</span>
+    </button>
+  </div>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
