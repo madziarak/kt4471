@@ -55,7 +55,7 @@ sendenKnopf.addEventListener("click", async () => {
 
   const { error } = await supabaseClient.auth.signInWithOtp({
     email,
-    options: { shouldCreateUser: true, emailRedirectTo: window.location.origin },
+    options: { shouldCreateUser: false, emailRedirectTo: window.location.origin },
   });
 
   sendenKnopf.disabled = false;
